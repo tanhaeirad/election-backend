@@ -49,4 +49,4 @@ coverage.xml
 .DS_Store
 
 # example database
-drf_example
+db.sqlite3
