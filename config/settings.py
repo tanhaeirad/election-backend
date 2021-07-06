@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework.authtoken',
     'account.apps.AccountConfig',
+    'election.apps.ElectionConfig',
 ]
 
 MIDDLEWARE = [
