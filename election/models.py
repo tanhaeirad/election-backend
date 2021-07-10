@@ -1,3 +1,7 @@
 from django.db import models
 
-# Create your models here.
+from account.models import User
+
+
+class City(models.Model):
+    name = models.CharField(max_length=255)
