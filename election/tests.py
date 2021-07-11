@@ -89,9 +89,9 @@ class ZoneTest(TestCase):
         tehran = City.objects.create(name='Isfahan', pk=1)
 
         # isfahan zones
-        Zone.objects.create(pk=0, name='z-0', city=isfahan)
-        Zone.objects.create(pk=1, name='z-1', city=isfahan)
-        Zone.objects.create(pk=2, name='z-2', city=isfahan)
+        Zone.objects.create(pk=0, name='z-0', city=self.isfahan)
+        Zone.objects.create(pk=1, name='z-1', city=self.isfahan)
+        Zone.objects.create(pk=2, name='z-2', city=self.isfahan)
 
         # tehran zones
         Zone.objects.create(pk=3, name='z-3', city=tehran)
@@ -100,7 +100,7 @@ class ZoneTest(TestCase):
     def test_get_all_zones(self):
         response = self.client.get(ALL_ZONES_ENDPOINT)
 
-        raw = force_text(response)
+        raw = force_text(response.content)
         excepted_data = [
             {'id': 0, 'name': 'z-0', 'city': 0},
             {'id': 1, 'name': 'z-1', 'city': 0},
@@ -122,7 +122,7 @@ class ZoneTest(TestCase):
         self.assertJSONEqual(raw, excepted_data)
 
     def test_update_zone(self):
-        response = self.client.put(UPDATE_ZONE_0_ENDPOINT, data={'name': 'updated'})
+        response = self.client.patch(UPDATE_ZONE_0_ENDPOINT, data={'name': 'updated'}, content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         if Zone.objects.filter(name='updated'):
@@ -142,12 +142,39 @@ class ZoneTest(TestCase):
         self.assertTrue(deleted)
 
     def test_get_zones_of_isfahan_and_tehran(self):
-        response = self.client.get(GET_ZONES_OF_ISFAHAN)
-        raw = force_text(response)
-        excepted_data = [0, 1, 2]
+        response = self.client.get(GET_ZONES_OF_TEHRAN)
+        raw = force_text(response.content)
+        excepted_data = [
+            {
+                "id": 3,
+                "name": "z-3",
+                "city": 1
+            },
+            {
+                "id": 4,
+                "name": "z-4",
+                "city": 1
+            }
+        ]
         self.assertJSONEqual(raw, excepted_data)
 
-        response = self.client.get(GET_ZONES_OF_TEHRAN)
-        raw = force_text(response)
-        excepted_data = [3, 4]
+        response = self.client.get(GET_ZONES_OF_ISFAHAN)
+        raw = force_text(response.content)
+        excepted_data = [
+            {
+                "id": 0,
+                "name": "z-0",
+                "city": 0
+            },
+            {
+                "id": 1,
+                "name": "z-1",
+                "city": 0
+            },
+            {
+                "id": 2,
+                "name": "z-2",
+                "city": 0
+            }
+        ]
         self.assertJSONEqual(raw, excepted_data)
