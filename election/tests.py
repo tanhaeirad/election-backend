@@ -239,20 +239,65 @@ class CityTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
 
-
 class ZoneTest(TestCase):
+    def create_clients(self):
+        # create self.client_visitor
+        visitor = User.objects.create_user(username='visitor', password='12345')
+
+        self.client_visitor = APIClient()
+        token = Token.objects.create(user=visitor)
+        token.save()
+        self.client_visitor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        Inspector.objects.create(user=inspector, zone=self.test_zone)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        Supervisor.objects.create(user=supervisor, zone=self.test_zone)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_admin = self.client
+        admin = User.objects.create(username='admin', password='12345')
+        Admin.objects.create(user=admin)
+        admin.refresh_from_db()
+
+        self.client_admin = APIClient()
+        token = Token.objects.create(user=admin)
+        token.save()
+        self.client_admin.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        self.client = self.client_admin
+
+        # create self.client_unauthorized
+        self.client_unauthorized = APIClient()
+
     def setUp(self):
         self.isfahan = City.objects.create(name='Isfahan', pk=0)
         tehran = City.objects.create(name='Isfahan', pk=1)
 
         # isfahan zones
-        Zone.objects.create(pk=0, name='z-0', city=self.isfahan)
+        self.test_zone = Zone.objects.create(pk=0, name='z-0', city=self.isfahan)
         Zone.objects.create(pk=1, name='z-1', city=self.isfahan)
         Zone.objects.create(pk=2, name='z-2', city=self.isfahan)
 
         # tehran zones
         Zone.objects.create(pk=3, name='z-3', city=tehran)
         Zone.objects.create(pk=4, name='z-4', city=tehran)
+
+        self.create_clients()
 
     def test_get_all_zones(self):
         response = self.client.get(ALL_ZONES_ENDPOINT)
@@ -279,7 +324,7 @@ class ZoneTest(TestCase):
         self.assertJSONEqual(raw, excepted_data)
 
     def test_update_zone(self):
-        response = self.client.patch(UPDATE_ZONE_0_ENDPOINT, data={'name': 'updated'}, content_type='application/json')
+        response = self.client.patch(UPDATE_ZONE_0_ENDPOINT, data={'name': 'updated'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         if Zone.objects.filter(name='updated'):
@@ -335,3 +380,129 @@ class ZoneTest(TestCase):
             }
         ]
         self.assertJSONEqual(raw, excepted_data)
+
+    def test_create_zone_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_retrieve_zone_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(GET_ZONE_3_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can
+        response = self.client_visitor.get(GET_ZONE_3_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(GET_ZONE_3_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(GET_ZONE_3_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(GET_ZONE_3_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_zone_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.patch(UPDATE_ZONE_0_ENDPOINT, data={'name': 'updated'})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.patch(UPDATE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.patch(UPDATE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.patch(UPDATE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.patch(UPDATE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_zone_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.delete(DELETE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.delete(DELETE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.delete(DELETE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.delete(DELETE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.delete(DELETE_ZONE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_list_zone_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(ALL_ZONES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can
+        response = self.client_visitor.get(ALL_ZONES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(ALL_ZONES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(ALL_ZONES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(ALL_ZONES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_zones_of_city_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(GET_ZONES_OF_TEHRAN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can
+        response = self.client_visitor.get(GET_ZONES_OF_TEHRAN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(GET_ZONES_OF_TEHRAN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(GET_ZONES_OF_TEHRAN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(GET_ZONES_OF_TEHRAN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
