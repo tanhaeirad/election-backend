@@ -173,7 +173,7 @@ class CityTest(TestCase):
 
         # check for admin - can
         response = self.client_admin.get(GET_ISFAHAN_ENDPOINT)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_update_city_permissions(self):
         # check for unauthorized - can't
@@ -216,6 +216,28 @@ class CityTest(TestCase):
         # check for admin - can
         response = self.client_admin.delete(DELETE_ISFAHAN_ENDPOINT)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_list_city_permissions(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(ALL_CITIES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for visitor - can
+        response = self.client_visitor.get(ALL_CITIES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(ALL_CITIES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(ALL_CITIES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(ALL_CITIES_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 
 
 class ZoneTest(TestCase):
