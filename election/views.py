@@ -24,11 +24,17 @@ class ZoneViewSet(ModelViewSet):
     queryset = Zone.objects.all()
     serializer_class = ZoneSerializer
 
-    # TODO: should add permission classes
-    # permission_classes = ...
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
 
 class ZonesOfCityAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, city_id):
         zones = Zone.objects.filter(city=city_id)
         data = [{'id': zone.id, 'name': zone.name, 'city': zone.city.id} for zone in zones]
