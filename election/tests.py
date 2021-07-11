@@ -135,29 +135,29 @@ class CityTest(TestCase):
 
     def test_create_city_permissions(self):
         # check for unauthorized - can't
-        response = self.client_unauthorized.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        response = self.client_unauthorized.post(CREATE_TABRIZ_CITY_ENDPOINT, data={'name': 'tabriz'})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can't
-        response = self.client_visitor.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        response = self.client_visitor.post(CREATE_TABRIZ_CITY_ENDPOINT, data={'name': 'tabriz'})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for inspector - can't
-        response = self.client_inspector.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        response = self.client_inspector.post(CREATE_TABRIZ_CITY_ENDPOINT, data={'name': 'tabriz'})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for supervisor - can't
-        response = self.client_supervisor.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        response = self.client_supervisor.post(CREATE_TABRIZ_CITY_ENDPOINT, data={'name': 'tabriz'})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for admin - can
-        response = self.client_admin.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        response = self.client_admin.post(CREATE_TABRIZ_CITY_ENDPOINT, data={'name': 'tabriz'})
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_retrieve_city_permissions(self):
         # check for unauthorized - can't
         response = self.client_unauthorized.get(GET_ISFAHAN_ENDPOINT)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can
         response = self.client_visitor.get(GET_ISFAHAN_ENDPOINT)
@@ -178,7 +178,7 @@ class CityTest(TestCase):
     def test_update_city_permissions(self):
         # check for unauthorized - can't
         response = self.client_unauthorized.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can't
         response = self.client_visitor.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
@@ -199,7 +199,7 @@ class CityTest(TestCase):
     def test_delete_city_permissions(self):
         # check for unauthorized - can't
         response = self.client_unauthorized.delete(DELETE_ISFAHAN_ENDPOINT)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can't
         response = self.client_visitor.delete(DELETE_ISFAHAN_ENDPOINT)
@@ -220,7 +220,7 @@ class CityTest(TestCase):
     def test_list_city_permissions(self):
         # check for unauthorized - can't
         response = self.client_unauthorized.get(ALL_CITIES_ENDPOINT)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can
         response = self.client_visitor.get(ALL_CITIES_ENDPOINT)
