@@ -1,7 +1,10 @@
 from django.test import TestCase
 from django.utils.encoding import force_text
 from rest_framework import status
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient
 
+from account.models import User, Inspector, Supervisor, Admin
 from .models import City, Zone
 
 # Define CONSTANTS
@@ -18,17 +21,66 @@ ALL_ZONES_ENDPOINT = '/election/zones/'
 GET_ZONE_3_ENDPOINT = '/election/zones/3/'
 CREATE_ZONE_ENDPOINT = '/election/zones/'
 UPDATE_ZONE_0_ENDPOINT = '/election/zones/0/'
-DELETE_ZONE_0_ENDPOINT = '/election/cities/0/'
+DELETE_ZONE_0_ENDPOINT = '/election/zones/0/'
 GET_ZONES_OF_ISFAHAN = '/election/cities/0/zones/'
 GET_ZONES_OF_TEHRAN = '/election/cities/1/zones/'
 
 
 class CityTest(TestCase):
+    def create_clients(self):
+        # create self.client_visitor
+        visitor = User.objects.create_user(username='visitor', password='12345')
+
+        self.client_visitor = APIClient()
+        token = Token.objects.create(user=visitor)
+        token.save()
+        self.client_visitor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        Inspector.objects.create(user=inspector, zone=self.test_zone)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        Supervisor.objects.create(user=supervisor, zone=self.test_zone)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_admin = self.client
+        admin = User.objects.create(username='admin', password='12345')
+        Admin.objects.create(user=admin)
+        admin.refresh_from_db()
+
+        self.client_admin = APIClient()
+        token = Token.objects.create(user=admin)
+        token.save()
+        self.client_admin.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        self.client = self.client_admin
+
+        # create self.client_unauthorized
+        self.client_unauthorized = APIClient()
+
     def setUp(self):
         # create cities
-        City.objects.create(name='Isfahan', pk=0)
+        isfahan = City.objects.create(name='Isfahan', pk=0)
         City.objects.create(name='Tehran', pk=1)
         City.objects.create(name='Shiraz', pk=2)
+
+        # create test_zone
+        self.test_zone = Zone.objects.create(pk=0, name='z-0', city=isfahan)
+
+        self.create_clients()
 
     def test_all_city(self):
         response = self.client.get(ALL_CITIES_ENDPOINT)
@@ -62,8 +114,7 @@ class CityTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_update_isfahan_city(self):
-        response = self.client.put(UPDATE_ISFAHAN_ENDPOINT, {'id': 0, 'name': 'Esfahan'},
-                                   content_type='application/json')
+        response = self.client.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'Esfahan'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         if City.objects.filter(name='Esfahan') and not City.objects.filter(name='Isfahan'):
@@ -81,6 +132,90 @@ class CityTest(TestCase):
             deleted = True
 
         self.assertTrue(deleted)
+
+    def test_create_city_permissions(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for visitor - can't
+        response = self.client_visitor.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.post(CREATE_ZONE_ENDPOINT, data={'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_retrieve_city_permissions(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(GET_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for visitor - can
+        response = self.client_visitor.get(GET_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(GET_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(GET_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(GET_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_update_city_permissions(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for visitor - can't
+        response = self.client_visitor.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.patch(UPDATE_ISFAHAN_ENDPOINT, data={'id': 0, 'name': 'new city'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_city_permissions(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.delete(DELETE_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for visitor - can't
+        response = self.client_visitor.delete(DELETE_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.delete(DELETE_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.delete(DELETE_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.delete(DELETE_ISFAHAN_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
 class ZoneTest(TestCase):
