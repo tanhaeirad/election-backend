@@ -9,4 +9,4 @@ class City(models.Model):
 
 class Zone(models.Model):
     name = models.CharField(max_length=255)
-    city = models.OneToOneField(City, on_delete=models.CASCADE)
+    city = models.ForeignKey(City, on_delete=models.CASCADE)
