@@ -48,6 +48,8 @@ htmlcov
 # Developers
 *.sw*
 .DS_Store
+todo.rtf
 
 # example database
 db.sqlite3
+
