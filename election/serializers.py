@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import City, Zone, Election
+from .models import City, Zone, Election, Candidate
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -40,3 +40,18 @@ class ElectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Election
         fields = ['id', 'zone_name', 'zone', 'city_name', 'city', 'status']
+
+
+class CandidateSerializer(serializers.ModelSerializer):
+    vote = serializers.SerializerMethodField(read_only=True)
+    election_id = serializers.PrimaryKeyRelatedField(source='election', queryset=Election.objects.all())
+
+    def get_vote(self, obj):
+        if obj.election.status == Election.ElectionStatus.ACCEPTED:
+            return obj.vote2
+        else:
+            return None
+
+    class Meta:
+        model = Candidate
+        fields = ['id', 'first_name', 'last_name', 'election_id', 'status', 'vote']
