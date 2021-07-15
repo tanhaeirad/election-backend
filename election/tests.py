@@ -5,7 +5,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from account.models import User, Inspector, Supervisor, Admin
-from .models import City, Zone, Election
+from .models import City, Zone, Election, Candidate
 
 # Define CONSTANTS
 
@@ -33,6 +33,13 @@ GET_ELECTION_0_ENDPOINT = '/election/elections/0/'
 CREATE_ELECTION_ENDPOINT = '/election/elections/'
 UPDATE_ELECTION_0_ENDPOINT = '/election/elections/0/'
 DELETE_ELECTION_0_ENDPOINT = '/election/elections/0/'
+
+# Candidate
+ALL_CANDIDATE_ENDPOINT = '/election/candidates/'
+GET_CANDIDATE_0_ENDPOINT = '/election/candidates/0/'
+CREATE_CANDIDATE_ENDPOINT = '/election/candidates/'
+UPDATE_CANDIDATE_0_ENDPOINT = '/election/candidates/0/'
+DELETE_CANDIDATE_0_ENDPOINT = '/election/candidates/0/'
 
 
 class CityTest(TestCase):
@@ -788,4 +795,288 @@ class ElectionViewSetTest(TestCase):
 
         # check for admin - can
         response = self.client_admin.get(ALL_ELECTION_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class CandidateViewSetTest(TestCase):
+    def create_clients(self):
+        # create self.client_visitor
+        visitor = User.objects.create_user(username='visitor', password='12345')
+
+        self.client_visitor = APIClient()
+        token = Token.objects.create(user=visitor)
+        token.save()
+        self.client_visitor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        Inspector.objects.create(user=inspector, zone=self.zone_0_0)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        Supervisor.objects.create(user=supervisor, zone=self.zone_0_0)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_admin = self.client
+        admin = User.objects.create(username='admin', password='12345')
+        Admin.objects.create(user=admin)
+        admin.refresh_from_db()
+
+        self.client_admin = APIClient()
+        token = Token.objects.create(user=admin)
+        token.save()
+        self.client_admin.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        self.client = self.client_admin
+
+        # create self.client_unauthorized
+        self.client_unauthorized = APIClient()
+
+    def setUp(self):
+        # create city_0 city_1
+        self.city_0 = City.objects.create(name='c-0', pk=0)
+
+        # create zone_0_0 zone_0_1
+        self.zone_0_0 = Zone.objects.create(pk=0, name='z-0-0', city=self.city_0)
+        self.zone_0_1 = Zone.objects.create(pk=1, name='z-0-1', city=self.city_0)
+
+        # create election_0_0 election_0_1
+        self.election_0_0 = Election.objects.create(pk=0, zone=self.zone_0_0)
+        self.election_0_1 = Election.objects.create(pk=1, zone=self.zone_0_1)
+
+        # create candidates for election_0_0
+        Candidate.objects.create(pk=0, first_name='f0', last_name='l0', election=self.election_0_0)
+        Candidate.objects.create(pk=1, first_name='f1', last_name='l1', election=self.election_0_0)
+        Candidate.objects.create(pk=2, first_name='f2', last_name='l2', election=self.election_0_0)
+
+        # create candidates for election_0_1
+        Candidate.objects.create(pk=3, first_name='f3', last_name='l3', election=self.election_0_1)
+        Candidate.objects.create(pk=4, first_name='f4', last_name='l4', election=self.election_0_1)
+
+        self.create_clients()
+
+    def test_get_all_candidate(self):
+        self.maxDiff = None
+        response = self.client.get(ALL_CANDIDATE_ENDPOINT)
+
+        raw = force_text(response.content)
+        excepted_data = [
+            {
+                'id': 0,
+                'first_name': 'f0',
+                'last_name': 'l0',
+                'election_id': self.election_0_0.id,
+                'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+                'vote': None
+            },
+            {
+                'id': 1,
+                'first_name': 'f1',
+                'last_name': 'l1',
+                'election_id': self.election_0_0.id,
+                'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+                'vote': None
+            },
+            {
+                'id': 2,
+                'first_name': 'f2',
+                'last_name': 'l2',
+                'election_id': self.election_0_0.id,
+                'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+                'vote': None
+            },
+            {
+                'id': 3,
+                'first_name': 'f3',
+                'last_name': 'l3',
+                'election_id': self.election_0_1.id,
+                'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+                'vote': None
+            },
+            {
+                'id': 4,
+                'first_name': 'f4',
+                'last_name': 'l4',
+                'election_id': self.election_0_1.id,
+                'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+                'vote': None
+            }
+        ]
+        self.assertJSONEqual(raw, excepted_data)
+
+    def test_create_new_candidate(self):
+        city = City.objects.create(name='test city')
+        zone = Zone.objects.create(name='test zone', city=city)
+        election = Election.objects.create(zone=zone)
+
+        data = {
+            'first_name': 'test first_name',
+            'last_name': 'test last_name',
+            'election_id': election.id,
+            'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR
+        }
+
+        response = self.client.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_retrieve_candidate(self):
+        response = self.client.get(GET_CANDIDATE_0_ENDPOINT)
+
+        raw = force_text(response.content)
+        excepted_data = {
+            'id': 0,
+            'first_name': 'f0',
+            'last_name': 'l0',
+            'election_id': self.election_0_0.id,
+            'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR,
+            'vote': None
+        }
+
+        self.assertJSONEqual(raw, excepted_data)
+
+    def test_update_candidate(self):
+        response = self.client.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        if Candidate.objects.filter(first_name='new first_name'):
+            updated = True
+        else:
+            updated = False
+        self.assertTrue(updated)
+
+    def test_delete_candidate_0(self):
+        response = self.client.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        if Candidate.objects.filter(pk=0):
+            deleted = False
+        else:
+            deleted = True
+        self.assertTrue(deleted)
+
+    def test_create_candidate_permission(self):
+        city = City.objects.create(name='test city')
+        zone = Zone.objects.create(name='test zone', city=city)
+        election = Election.objects.create(zone=zone)
+
+        data = {
+            'first_name': 'test first_name',
+            'last_name': 'test last_name',
+            'election_id': election.id,
+            'status': Candidate.CandidateStatus.PENDING_FOR_INSPECTOR
+        }
+
+        # check for unauthorized - can't
+        response = self.client_unauthorized.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.post(CREATE_CANDIDATE_ENDPOINT, data=data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_retrieve_candidate_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(GET_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can
+        response = self.client_visitor.get(GET_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(GET_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(GET_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(GET_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_update_candidate_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.patch(UPDATE_CANDIDATE_0_ENDPOINT, data={'first_name': 'new first_name'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_delete_candidate_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor - can't
+        response = self.client_supervisor.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can
+        response = self.client_admin.delete(DELETE_CANDIDATE_0_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_list_candidate_permission(self):
+        # check for unauthorized - can't
+        response = self.client_unauthorized.get(ALL_CANDIDATE_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can
+        response = self.client_visitor.get(ALL_CANDIDATE_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for inspector - can
+        response = self.client_inspector.get(ALL_CANDIDATE_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for supervisor - can
+        response = self.client_supervisor.get(ALL_CANDIDATE_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check for admin - can
+        response = self.client_admin.get(ALL_CANDIDATE_ENDPOINT)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
