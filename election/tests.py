@@ -599,6 +599,17 @@ class ElectionViewSetTest(TestCase):
         self.election_1_0 = Election.objects.create(pk=2, zone=self.zone_1_0)
         self.election_1_1 = Election.objects.create(pk=3, zone=self.zone_1_1)
 
+        # create candidates for election_1_0
+        Candidate.objects.create(pk=0, first_name='f0', last_name='l0', election=self.election_1_0)
+        Candidate.objects.create(pk=1, first_name='f1', last_name='l1', election=self.election_1_0)
+        Candidate.objects.create(pk=2, first_name='f2', last_name='l2', election=self.election_1_0)
+
+        # create candidates for election_0_0
+        Candidate.objects.create(pk=3, first_name='f3', last_name='l3', election=self.election_0_0)
+        Candidate.objects.create(pk=4, first_name='f4', last_name='l4', election=self.election_0_0)
+        Candidate.objects.create(pk=5, first_name='f5', last_name='l5', election=self.election_0_0)
+        Candidate.objects.create(pk=6, first_name='f6', last_name='l6', election=self.election_0_0)
+
         self.create_clients()
 
     def test_get_all_elections(self):
@@ -612,6 +623,7 @@ class ElectionViewSetTest(TestCase):
                 'zone': 0,
                 'city_name': 'c-0',
                 'city': 0,
+                'candidates': [3, 4, 5, 6],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
             {
@@ -620,6 +632,7 @@ class ElectionViewSetTest(TestCase):
                 'zone': 1,
                 'city_name': 'c-0',
                 'city': 0,
+                'candidates': [],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
             {
@@ -628,6 +641,7 @@ class ElectionViewSetTest(TestCase):
                 'zone': 2,
                 'city_name': 'c-1',
                 'city': 1,
+                'candidates': [0, 1, 2],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
             {
@@ -636,6 +650,7 @@ class ElectionViewSetTest(TestCase):
                 'zone': 3,
                 'city_name': 'c-1',
                 'city': 1,
+                'candidates': [],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
         ]
@@ -658,6 +673,7 @@ class ElectionViewSetTest(TestCase):
             'zone': 0,
             'city_name': 'c-0',
             'city': 0,
+            'candidates': [3, 4, 5, 6],
             'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
         }
 

@@ -36,10 +36,14 @@ class ElectionSerializer(serializers.ModelSerializer):
     zone_name = serializers.CharField(max_length=255, source='zone.name', read_only=True)
     city_name = serializers.CharField(max_length=255, source='zone.city.name', read_only=True)
     city = serializers.IntegerField(source='zone.city.pk', read_only=True)
+    candidates = serializers.SerializerMethodField(read_only=True)
+
+    def get_candidates(self, obj):
+        return Candidate.objects.filter(election=obj).values_list('id', flat=True)
 
     class Meta:
         model = Election
-        fields = ['id', 'zone_name', 'zone', 'city_name', 'city', 'status']
+        fields = ['id', 'zone_name', 'zone', 'city_name', 'city', 'candidates', 'status']
 
 
 class CandidateSerializer(serializers.ModelSerializer):
