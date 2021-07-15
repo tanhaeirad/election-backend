@@ -2,11 +2,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.generics import GenericAPIView
 
 from account.permissions import IsAdmin
-from .models import City, Zone, Election
-from .serializers import CitySerializer, ZoneSerializer, ElectionSerializer
+from .models import City, Zone, Election, Candidate
+from .serializers import CitySerializer, ZoneSerializer, ElectionSerializer, CandidateSerializer
 
 
 class CityViewSet(ModelViewSet):
@@ -45,6 +44,18 @@ class ZonesOfCityAPIView(APIView):
 class ElectionViewSet(ModelViewSet):
     queryset = Election.objects.all()
     serializer_class = ElectionSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAdmin]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+
+class CandidateViewSet(ModelViewSet):
+    queryset = Candidate.objects.all()
+    serializer_class = CandidateSerializer
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
