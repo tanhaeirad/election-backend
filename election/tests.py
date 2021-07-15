@@ -35,11 +35,6 @@ UPDATE_ELECTION_0_ENDPOINT = '/election/elections/0/'
 DELETE_ELECTION_0_ENDPOINT = '/election/elections/0/'
 
 
-
-
-# Election - Candidate
-
-
 class CityTest(TestCase):
     def create_clients(self):
         # create self.client_visitor
@@ -88,11 +83,13 @@ class CityTest(TestCase):
     def setUp(self):
         # create cities
         isfahan = City.objects.create(name='Isfahan', pk=0)
-        City.objects.create(name='Tehran', pk=1)
+        tehran = City.objects.create(name='Tehran', pk=1)
         City.objects.create(name='Shiraz', pk=2)
 
         # create test_zone
         self.test_zone = Zone.objects.create(pk=0, name='z-0', city=isfahan)
+        Zone.objects.create(pk=1, name='z-1', city=isfahan)
+        Zone.objects.create(pk=2, name='z-2', city=tehran)
 
         self.create_clients()
 
@@ -103,15 +100,18 @@ class CityTest(TestCase):
         excepted_data = [
             {
                 'id': 0,
-                'name': 'Isfahan'
+                'name': 'Isfahan',
+                'zone_id': [0, 1]
             },
             {
                 'id': 1,
                 'name': 'Tehran',
+                'zone_id': [2]
             },
             {
                 'id': 2,
-                'name': 'Shiraz'
+                'name': 'Shiraz',
+                'zone_id': []
             }
         ]
         self.assertJSONEqual(raw, excepted_data)
@@ -120,7 +120,7 @@ class CityTest(TestCase):
         response = self.client.get(GET_ISFAHAN_ENDPOINT)
 
         raw = force_text(response.content)
-        excepted_data = {'id': 0, 'name': 'Isfahan'}
+        excepted_data = {'id': 0, 'name': 'Isfahan', 'zone_id': [0, 1]}
         self.assertJSONEqual(raw, excepted_data)
 
     def test_create_tabriz_city(self):
@@ -311,30 +311,34 @@ class ZoneTest(TestCase):
         Zone.objects.create(pk=3, name='z-3', city=tehran)
         Zone.objects.create(pk=4, name='z-4', city=tehran)
 
+        # election for test test zone
+        Election.objects.create(pk=0, zone=self.test_zone)
+
         self.create_clients()
 
     def test_get_all_zones(self):
         response = self.client.get(ALL_ZONES_ENDPOINT)
 
         raw = force_text(response.content)
+
         excepted_data = [
-            {'id': 0, 'name': 'z-0', 'city': 0},
-            {'id': 1, 'name': 'z-1', 'city': 0},
-            {'id': 2, 'name': 'z-2', 'city': 0},
-            {'id': 3, 'name': 'z-3', 'city': 1},
-            {'id': 4, 'name': 'z-4', 'city': 1}
+            {'id': 0, 'name': 'z-0', 'city_id': 0, 'election_id': 0},
+            {'id': 1, 'name': 'z-1', 'city_id': 0, 'election_id': None},
+            {'id': 2, 'name': 'z-2', 'city_id': 0, 'election_id': None},
+            {'id': 3, 'name': 'z-3', 'city_id': 1, 'election_id': None},
+            {'id': 4, 'name': 'z-4', 'city_id': 1, 'election_id': None}
         ]
         self.assertJSONEqual(raw, excepted_data)
 
     def test_create_new_zone(self):
-        response = self.client.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    def test_retrieve(self):
+    def test_retrieve_zone(self):
         response = self.client.get(GET_ZONE_3_ENDPOINT)
 
         raw = force_text(response.content)
-        excepted_data = {'id': 3, 'name': 'z-3', 'city': 1}
+        excepted_data = {'id': 3, 'name': 'z-3', 'city_id': 1, 'election_id': None}
         self.assertJSONEqual(raw, excepted_data)
 
     def test_update_zone(self):
@@ -397,23 +401,23 @@ class ZoneTest(TestCase):
 
     def test_create_zone_permission(self):
         # check for unauthorized - can't
-        response = self.client_unauthorized.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client_unauthorized.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # check for visitor - can't
-        response = self.client_visitor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client_visitor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for inspector - can't
-        response = self.client_inspector.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client_inspector.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for supervisor - can't
-        response = self.client_supervisor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client_supervisor.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
         # check for admin - can
-        response = self.client_admin.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city': self.isfahan.pk})
+        response = self.client_admin.post(CREATE_ZONE_ENDPOINT, data={'name': 'z-5', 'city_id': 0})
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_retrieve_zone_permission(self):
