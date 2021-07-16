@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils.translation import gettext as _
 
+from account.models import Inspector, Supervisor
+
 
 class City(models.Model):
     name = models.CharField(max_length=255)
@@ -19,6 +21,8 @@ class Election(models.Model):
         ACCEPTED = 'Accepted', _('Accepted')
 
     zone = models.OneToOneField(Zone, on_delete=models.CASCADE)
+    inspector = models.OneToOneField(Inspector, on_delete=models.SET_NULL, default=None, null=True)
+    supervisor = models.OneToOneField(Supervisor, on_delete=models.SET_NULL, default=None, null=True)
     status = models.CharField(max_length=255, choices=ElectionStatus.choices,
                               default=ElectionStatus.PENDING_FOR_INSPECTOR)
 

@@ -43,7 +43,7 @@ class ElectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Election
-        fields = ['id', 'zone_name', 'zone', 'city_name', 'city', 'candidates', 'status']
+        fields = ['id', 'zone_name', 'zone', 'city_name', 'city', 'inspector', 'supervisor', 'candidates', 'status']
 
 
 class CandidateSerializer(serializers.ModelSerializer):

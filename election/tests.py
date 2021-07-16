@@ -54,7 +54,7 @@ class CityTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, election=self.election)
+        Inspector.objects.create(user=inspector)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -64,7 +64,7 @@ class CityTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, election=self.election)
+        Supervisor.objects.create(user=supervisor)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -275,7 +275,7 @@ class ZoneTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, election=self.election)
+        Inspector.objects.create(user=inspector)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -285,7 +285,7 @@ class ZoneTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, election=self.election)
+        Supervisor.objects.create(user=supervisor)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -548,8 +548,8 @@ class ElectionViewSetTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, election=self.election_0_0)
-        inspector.refresh_from_db()
+        self.inspector = Inspector.objects.create(pk=5, user=inspector)
+        self.inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
         token = Token.objects.create(user=inspector)
@@ -558,8 +558,8 @@ class ElectionViewSetTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, election=self.election_0_0)
-        supervisor.refresh_from_db()
+        self.supervisor = Supervisor.objects.create(pk=2, user=supervisor)
+        self.supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
         token = Token.objects.create(user=supervisor)
@@ -582,6 +582,8 @@ class ElectionViewSetTest(TestCase):
         self.client_unauthorized = APIClient()
 
     def setUp(self):
+        self.create_clients()
+
         # create city_0 city_1
         self.city_0 = City.objects.create(name='c-0', pk=0)
         self.city_1 = City.objects.create(name='c-1', pk=1)
@@ -594,9 +596,13 @@ class ElectionViewSetTest(TestCase):
         self.zone_1_0 = Zone.objects.create(pk=2, name='z-1-0', city=self.city_1)
         self.zone_1_1 = Zone.objects.create(pk=3, name='z-1-1', city=self.city_1)
 
-        # create election_0_0 election_0_1
-        self.election_0_0 = Election.objects.create(pk=0, zone=self.zone_0_0)
-        self.election_0_1 = Election.objects.create(pk=1, zone=self.zone_0_1)
+        # create election_0_0 election_0_1 and test_supervisor
+        test_user = User.objects.create(username='test_inspector', password='12345')
+        test_inspector = Inspector.objects.create(pk=9, user=test_user)
+
+        self.election_0_0 = Election.objects.create(pk=0, zone=self.zone_0_0, inspector=self.inspector)
+        self.election_0_1 = Election.objects.create(pk=1, zone=self.zone_0_1, inspector=test_inspector,
+                                                    supervisor=self.supervisor)
 
         # create election_1_0 election_1_1
         self.election_1_0 = Election.objects.create(pk=2, zone=self.zone_1_0)
@@ -613,8 +619,6 @@ class ElectionViewSetTest(TestCase):
         Candidate.objects.create(pk=5, first_name='f5', last_name='l5', election=self.election_0_0)
         Candidate.objects.create(pk=6, first_name='f6', last_name='l6', election=self.election_0_0)
 
-        self.create_clients()
-
     def test_get_all_elections(self):
         response = self.client.get(ALL_ELECTION_ENDPOINT)
 
@@ -626,6 +630,8 @@ class ElectionViewSetTest(TestCase):
                 'zone': 0,
                 'city_name': 'c-0',
                 'city': 0,
+                'inspector': 5,
+                'supervisor': None,
                 'candidates': [3, 4, 5, 6],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
@@ -635,6 +641,8 @@ class ElectionViewSetTest(TestCase):
                 'zone': 1,
                 'city_name': 'c-0',
                 'city': 0,
+                'inspector': 9,
+                'supervisor': 2,
                 'candidates': [],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
@@ -644,6 +652,8 @@ class ElectionViewSetTest(TestCase):
                 'zone': 2,
                 'city_name': 'c-1',
                 'city': 1,
+                'inspector': None,
+                'supervisor': None,
                 'candidates': [0, 1, 2],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
@@ -653,6 +663,8 @@ class ElectionViewSetTest(TestCase):
                 'zone': 3,
                 'city_name': 'c-1',
                 'city': 1,
+                'inspector': None,
+                'supervisor': None,
                 'candidates': [],
                 'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
             },
@@ -676,6 +688,8 @@ class ElectionViewSetTest(TestCase):
             'zone': 0,
             'city_name': 'c-0',
             'city': 0,
+            'inspector': 5,
+            'supervisor': None,
             'candidates': [3, 4, 5, 6],
             'status': Election.ElectionStatus.PENDING_FOR_INSPECTOR
         }
@@ -829,7 +843,7 @@ class CandidateViewSetTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, election=self.election_0_0)
+        Inspector.objects.create(user=inspector)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -839,7 +853,7 @@ class CandidateViewSetTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, election=self.election_0_0)
+        Supervisor.objects.create(user=supervisor)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -886,7 +900,6 @@ class CandidateViewSetTest(TestCase):
         self.create_clients()
 
     def test_get_all_candidate(self):
-        self.maxDiff = None
         response = self.client.get(ALL_CANDIDATE_ENDPOINT)
 
         raw = force_text(response.content)
