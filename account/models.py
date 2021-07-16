@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext as _
 
-from election.models import Zone
+from election.models import Election
 
 
 class User(AbstractUser):
@@ -18,12 +18,12 @@ class User(AbstractUser):
 
 class Inspector(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    zone = models.OneToOneField(Zone, on_delete=models.SET_NULL, null=True, default=None)
+    election = models.OneToOneField(Election, on_delete=models.SET_NULL, null=True, default=None)
 
 
 class Supervisor(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    zone = models.OneToOneField(Zone, on_delete=models.SET_NULL, null=True, default=None)
+    election = models.OneToOneField(Election, on_delete=models.SET_NULL, null=True, default=None)
 
 
 class Admin(models.Model):

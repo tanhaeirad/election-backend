@@ -3,7 +3,7 @@ from django.utils.encoding import force_text
 from rest_framework import status
 
 from .models import User, Inspector, Supervisor, Admin
-from election.models import City, Zone
+from election.models import City, Zone, Election
 
 # Define CONSTANTS
 LOGIN_ENDPOINT = '/account/login/'
@@ -14,7 +14,8 @@ GET_ALL_USERS_ENDPOINT = '/account/users/'
 class AccountTest(TestCase):
     def setUp(self):
         city = City.objects.create(name='test city')
-        self.zone = Zone.objects.create(name='test zone', city=city)
+        zone = Zone.objects.create(name='test zone', city=city)
+        self.election = Election.objects.create(zone=zone)
 
     def test_login(self):
         User.objects.create_user('test_user', 'something@gmail.com', '123')
@@ -51,11 +52,11 @@ class AccountTest(TestCase):
 
         # create user2 inspector
         user2 = User.objects.create_user(username='user2', password='123')
-        Inspector.objects.create(user=user2, zone=self.zone)
+        Inspector.objects.create(user=user2, election=self.election)
 
         # create user3 supervisor
         user3 = User.objects.create_user(username='user3', password='123')
-        Supervisor.objects.create(user=user3, zone=self.zone)
+        Supervisor.objects.create(user=user3, election=self.election)
 
         # create user4 admin
         user4 = User.objects.create_user(username='user4', password='123')

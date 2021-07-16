@@ -54,7 +54,7 @@ class CityTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, zone=self.test_zone)
+        Inspector.objects.create(user=inspector, election=self.election)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -64,7 +64,7 @@ class CityTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, zone=self.test_zone)
+        Supervisor.objects.create(user=supervisor, election=self.election)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -94,9 +94,12 @@ class CityTest(TestCase):
         City.objects.create(name='Shiraz', pk=2)
 
         # create test_zone
-        self.test_zone = Zone.objects.create(pk=0, name='z-0', city=isfahan)
+        zone = Zone.objects.create(pk=0, name='z-0', city=isfahan)
         Zone.objects.create(pk=1, name='z-1', city=isfahan)
         Zone.objects.create(pk=2, name='z-2', city=tehran)
+
+        # create election
+        self.election = Election.objects.create(zone=zone)
 
         self.create_clients()
 
@@ -272,7 +275,7 @@ class ZoneTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, zone=self.test_zone)
+        Inspector.objects.create(user=inspector, election=self.election)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -282,7 +285,7 @@ class ZoneTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, zone=self.test_zone)
+        Supervisor.objects.create(user=supervisor, election=self.election)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -310,7 +313,7 @@ class ZoneTest(TestCase):
         tehran = City.objects.create(name='Isfahan', pk=1)
 
         # isfahan zones
-        self.test_zone = Zone.objects.create(pk=0, name='z-0', city=self.isfahan)
+        zone = Zone.objects.create(pk=0, name='z-0', city=self.isfahan)
         Zone.objects.create(pk=1, name='z-1', city=self.isfahan)
         Zone.objects.create(pk=2, name='z-2', city=self.isfahan)
 
@@ -319,7 +322,7 @@ class ZoneTest(TestCase):
         Zone.objects.create(pk=4, name='z-4', city=tehran)
 
         # election for test test zone
-        Election.objects.create(pk=0, zone=self.test_zone)
+        self.election = Election.objects.create(pk=0, zone=zone)
 
         self.create_clients()
 
@@ -545,7 +548,7 @@ class ElectionViewSetTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, zone=self.zone_0_0)
+        Inspector.objects.create(user=inspector, election=self.election_0_0)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -555,7 +558,7 @@ class ElectionViewSetTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, zone=self.zone_0_0)
+        Supervisor.objects.create(user=supervisor, election=self.election_0_0)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
@@ -826,7 +829,7 @@ class CandidateViewSetTest(TestCase):
 
         # create self.client_inspector
         inspector = User.objects.create(username='inspector', password='12345')
-        Inspector.objects.create(user=inspector, zone=self.zone_0_0)
+        Inspector.objects.create(user=inspector, election=self.election_0_0)
         inspector.refresh_from_db()
 
         self.client_inspector = APIClient()
@@ -836,7 +839,7 @@ class CandidateViewSetTest(TestCase):
 
         # create self.client_supervisor
         supervisor = User.objects.create(username='supervisor', password='12345')
-        Supervisor.objects.create(user=supervisor, zone=self.zone_0_0)
+        Supervisor.objects.create(user=supervisor, election=self.election_0_0)
         supervisor.refresh_from_db()
 
         self.client_supervisor = APIClient()
