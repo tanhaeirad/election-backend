@@ -59,3 +59,46 @@ class CandidateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Candidate
         fields = ['id', 'first_name', 'last_name', 'election_id', 'status', 'vote']
+
+
+class InspectorConfirmVoteSerializer(serializers.ModelSerializer):
+    candidate = serializers.IntegerField(source='id')
+    vote = serializers.IntegerField(source='vote1')
+
+    class Meta:
+        model = Candidate
+        fields = ['candidate', 'vote']
+
+    def create(self, validated_data):
+        candidate = Candidate.objects.get(pk=validated_data['id'])
+        candidate.vote1 = validated_data['vote1']
+        candidate.status = Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR
+        candidate.save()
+
+        return candidate
+
+
+class SupervisorConfirmVoteSerializer(serializers.ModelSerializer):
+    candidate = serializers.IntegerField(source='id', write_only=True)
+    vote = serializers.IntegerField(source='vote2', write_only=True)
+
+    class Meta:
+        model = Candidate
+        fields = ['candidate', 'vote']
+
+    def update(self, instance, validated_data):
+        return None
+
+    def create(self, validated_data):
+        candidate = Candidate.objects.get(validated_data['candidate'])
+        vote = validated_data['vote']
+
+        candidate.vote2 = vote
+        if candidate.vote1 == candidate.vote2:
+            candidate.status = Candidate.CandidateStatus.ACCEPTED
+        else:
+            candidate.status = Candidate.CandidateStatus.REJECTED
+
+        candidate.save()
+
+        return candidate
