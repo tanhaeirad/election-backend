@@ -46,6 +46,9 @@ DELETE_CANDIDATE_0_ENDPOINT = '/election/candidates/0/'
 # Confirm vote by inspector
 INSPECTOR_CONFIRM_VOTE_ENDPOINT = '/election/elections/inspector-confirm-vote/0/'
 
+# Confirm vote by supervisor
+SUPERVISOR_CONFIRM_VOTE_ENDPOINT = '/election/elections/supervisor-confirm-vote/0/'
+
 
 class CityTest(TestCase):
     def create_clients(self):
@@ -1269,4 +1272,162 @@ class InspectorConfirmVoteTest(TestCase):
 
             response = self.client_inspector_of_election.post(INSPECTOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
                                                               content_type='application/json')
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class SupervisorConfirmVoteTest(TestCase):
+    def create_clients(self):
+        # create self.client_visitor
+        visitor = User.objects.create_user(username='visitor', password='12345')
+
+        self.client_visitor = APIClient()
+        token = Token.objects.create(user=visitor)
+        token.save()
+        self.client_visitor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        self.inspector = Inspector.objects.create(user=inspector)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor_of_election
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        self.supervisor_of_election = Supervisor.objects.create(user=supervisor)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor_of_election = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor_of_election.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor_of_another_election
+        supervisor = User.objects.create(username='supervisor_2', password='12345')
+        self.supervisor_of_another_election = Supervisor.objects.create(user=supervisor)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor_of_another_election = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor_of_another_election.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_admin = self.client
+        admin = User.objects.create(username='admin', password='12345')
+        Admin.objects.create(user=admin)
+        admin.refresh_from_db()
+
+        self.client_admin = APIClient()
+        token = Token.objects.create(user=admin)
+        token.save()
+        self.client_admin.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_unauthorized
+        self.client_unauthorized = APIClient()
+
+    def setUp(self):
+        self.create_clients()
+        self.client = self.client_supervisor_of_election
+
+        # create city_0
+        self.city_0 = City.objects.create(name='c-0', pk=0)
+
+        # create zone_0_0
+        self.zone_0_0 = Zone.objects.create(pk=0, name='z-0-0', city=self.city_0)
+
+        # create election_0_0
+        self.election_0_0 = Election.objects.create(pk=0, zone=self.zone_0_0, inspector=self.inspector,
+                                                    supervisor=self.supervisor_of_election,
+                                                    status=Election.ElectionStatus.PENDING_FOR_SUPERVISOR)
+
+        # create candidates for election_0_0
+        self.candidate_0 = Candidate.objects.create(pk=3, first_name='f3', last_name='l3', election=self.election_0_0,
+                                                    vote1=10)
+        self.candidate_1 = Candidate.objects.create(pk=4, first_name='f4', last_name='l4', election=self.election_0_0,
+                                                    vote1=20)
+        self.candidate_2 = Candidate.objects.create(pk=5, first_name='f5', last_name='l5', election=self.election_0_0,
+                                                    vote1=30)
+        self.candidate_3 = Candidate.objects.create(pk=6, first_name='f6', last_name='l6', election=self.election_0_0,
+                                                    vote1=50)
+
+    def test_confirm_vote(self):
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+        response = self.client.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # check vote1:
+        self.candidate_0.refresh_from_db()
+        self.assertEqual(self.candidate_0.vote2, 10)
+
+        self.candidate_1.refresh_from_db()
+        self.assertEqual(self.candidate_1.vote2, 20)
+
+        self.candidate_2.refresh_from_db()
+        self.assertEqual(self.candidate_2.vote2, 30)
+
+        self.candidate_3.refresh_from_db()
+        self.assertEqual(self.candidate_3.vote2, 50)
+
+    def test_confirm_vote_permission_supervisor(self):  # only supervisor of election can.
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+
+        # check for unauthorized - can't
+        response = self.client_unauthorized.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                                 content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # check for visitor - can't
+        response = self.client_visitor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                            content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for inspector - can't
+        response = self.client_inspector.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for supervisor_of_election - can
+        response = self.client_supervisor_of_election.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                                           content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # check for supervisor_of_another_election - can't
+        response = self.client_supervisor_of_another_election.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                                                   content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # check for admin - can't
+        response = self.client_admin.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                          content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_confirm_vote_permission_election_status(self):
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+
+        # check for supervisor of this election but election status is not valid - can't
+        election_status = Election.ElectionStatus
+        for s in (election_status.PENDING_FOR_INSPECTOR, election_status.REJECTED, election_status.ACCEPTED):
+            self.election_0_0.status = s
+            self.election_0_0.save()
+
+            response = self.client.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
+                                        content_type='application/json')
             self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
