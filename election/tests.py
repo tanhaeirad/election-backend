@@ -1431,3 +1431,107 @@ class SupervisorConfirmVoteTest(TestCase):
             response = self.client.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data),
                                         content_type='application/json')
             self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class CandidateStatusTest(TestCase):
+    def create_clients(self):
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        self.inspector = Inspector.objects.create(user=inspector)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        self.supervisor = Supervisor.objects.create(user=supervisor)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+    def setUp(self):
+        self.create_clients()
+
+        # create city
+        self.city = City.objects.create(name='c-o', pk=0)
+
+        # create zone
+        self.zone = Zone.objects.create(pk=0, name='z-0', city=self.city)
+
+        # create election
+        self.election = Election.objects.create(pk=0, zone=self.zone, inspector=self.inspector,
+                                                supervisor=self.supervisor)
+
+        # create candidates for election_0_0
+        self.candidate_0 = Candidate.objects.create(pk=3, first_name='f3', last_name='l3', election=self.election)
+        self.candidate_1 = Candidate.objects.create(pk=4, first_name='f4', last_name='l4', election=self.election)
+        self.candidate_2 = Candidate.objects.create(pk=5, first_name='f5', last_name='l5', election=self.election)
+        self.candidate_3 = Candidate.objects.create(pk=6, first_name='f6', last_name='l6', election=self.election)
+
+    def test_initial_candidates_status(self):  # candidates status should be Pending For Inspector
+        candidates = Candidate.objects.all()
+        for candidate in candidates:
+            self.assertEqual(candidate.status, Candidate.CandidateStatus.PENDING_FOR_INSPECTOR)
+
+    def test_candidates_status_after_inspector_submit_vote(self):  # candidates status should be Pending For Supervisor
+        self.inspector_submit_vote()
+
+        candidates = Candidate.objects.all()
+        for candidate in candidates:
+            self.assertEqual(candidate.status, Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR)
+
+    def test_candidates_status_after_supervisor_submit_correct_vote(self):  # candidates status should be Accepted
+
+        self.inspector_submit_vote()
+        self.supervisor_submit_correct_vote()
+
+        candidates = Candidate.objects.all()
+        for candidate in candidates:
+            self.assertEqual(candidate.status, Candidate.CandidateStatus.ACCEPTED)
+
+    def test_candidates_status_after_supervisor_submit_incorrect_vote(self):
+        # candidate status should be Accepted except candidate(3) and  candidate(5) Rejected
+
+        self.inspector_submit_vote()
+        self.supervisor_submit_incorrect_vote()
+
+        candidates = Candidate.objects.all()
+        for candidate in candidates:
+            if candidate.id in [3, 5]:
+                self.assertEqual(candidate.status, Candidate.CandidateStatus.REJECTED)
+            else:
+                self.assertEqual(candidate.status, Candidate.CandidateStatus.ACCEPTED)
+
+    def inspector_submit_vote(self):
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_inspector.post(INSPECTOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_correct_vote(self):
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_incorrect_vote(self):
+        # candidate(3) and  candidate(5) have incorrect vote
+        data = [
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 21},
+            {'candidate': 3, 'vote': 9},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
