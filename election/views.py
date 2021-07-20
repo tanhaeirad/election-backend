@@ -88,4 +88,17 @@ class InspectorConfirmVoteAPIView(APIView):
 
 
 class SupervisorConfirmVoteAPIView(APIView):
-    pass
+    permission_classes = [CanSupervisorConfirmVote, IsSupervisor]
+
+    def post(self, request, election_id):
+        election = Election.objects.get(pk=election_id)
+
+        # check obj permissions
+        self.check_object_permissions(request, election)
+
+        supervisor_confirm_vote_serializer = SupervisorConfirmVoteSerializer(data=request.data, many=True)
+        if supervisor_confirm_vote_serializer.is_valid():
+            supervisor_confirm_vote_serializer.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)

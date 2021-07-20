@@ -79,26 +79,20 @@ class InspectorConfirmVoteSerializer(serializers.ModelSerializer):
 
 
 class SupervisorConfirmVoteSerializer(serializers.ModelSerializer):
-    candidate = serializers.IntegerField(source='id', write_only=True)
-    vote = serializers.IntegerField(source='vote2', write_only=True)
+    candidate = serializers.IntegerField(source='id')
+    vote = serializers.IntegerField(source='vote2')
 
     class Meta:
         model = Candidate
         fields = ['candidate', 'vote']
 
-    def update(self, instance, validated_data):
-        return None
-
     def create(self, validated_data):
-        candidate = Candidate.objects.get(validated_data['candidate'])
-        vote = validated_data['vote']
-
-        candidate.vote2 = vote
+        candidate = Candidate.objects.get(pk=validated_data['id'])
+        candidate.vote2 = validated_data['vote2']
         if candidate.vote1 == candidate.vote2:
             candidate.status = Candidate.CandidateStatus.ACCEPTED
         else:
             candidate.status = Candidate.CandidateStatus.REJECTED
-
         candidate.save()
 
         return candidate
