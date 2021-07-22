@@ -75,7 +75,31 @@ class InspectorConfirmVoteSerializer(serializers.ModelSerializer):
         candidate.status = Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR
         candidate.save()
 
+        self.update_election_status(candidate.election)
+
         return candidate
+
+    def update_election_status(self, election):
+        candidates = Candidate.objects.filter(election=election)
+
+        pending_for_inspector_candidates = candidates.filter(status=Candidate.CandidateStatus.PENDING_FOR_INSPECTOR)
+        pending_for_supervisor_candidates = candidates.filter(status=Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR)
+        rejected_candidates = candidates.filter(status=Candidate.CandidateStatus.REJECTED)
+        accepted_candidates = candidates.filter(status=Candidate.CandidateStatus.ACCEPTED)
+
+        if pending_for_inspector_candidates.count() > 0 or candidates.count() == 0:
+            election.status = Election.ElectionStatus.PENDING_FOR_INSPECTOR
+
+        elif pending_for_supervisor_candidates.count() > 0:
+            election.status = Election.ElectionStatus.PENDING_FOR_SUPERVISOR
+
+        elif rejected_candidates.count() > 0:
+            election.status = Election.ElectionStatus.REJECTED
+
+        elif accepted_candidates.count() == candidates.count():
+            election.status = Election.ElectionStatus.ACCEPTED
+
+        election.save()
 
 
 class SupervisorConfirmVoteSerializer(serializers.ModelSerializer):
@@ -87,6 +111,12 @@ class SupervisorConfirmVoteSerializer(serializers.ModelSerializer):
         fields = ['candidate', 'vote']
 
     def create(self, validated_data):
+        candidate = self.update_candidate(validated_data)
+        election = candidate.election
+        self.update_election_status(election)
+        return candidate
+
+    def update_candidate(self, validated_data):
         candidate = Candidate.objects.get(pk=validated_data['id'])
         candidate.vote2 = validated_data['vote2']
         if candidate.vote1 == candidate.vote2:
@@ -96,3 +126,25 @@ class SupervisorConfirmVoteSerializer(serializers.ModelSerializer):
         candidate.save()
 
         return candidate
+
+    def update_election_status(self, election):
+        candidates = Candidate.objects.filter(election=election)
+
+        pending_for_inspector_candidates = candidates.filter(status=Candidate.CandidateStatus.PENDING_FOR_INSPECTOR)
+        pending_for_supervisor_candidates = candidates.filter(status=Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR)
+        rejected_candidates = candidates.filter(status=Candidate.CandidateStatus.REJECTED)
+        accepted_candidates = candidates.filter(status=Candidate.CandidateStatus.ACCEPTED)
+
+        if pending_for_inspector_candidates.count() > 0 or candidates.count() == 0:
+            election.status = Election.ElectionStatus.PENDING_FOR_INSPECTOR
+
+        elif pending_for_supervisor_candidates.count() > 0:
+            election.status = Election.ElectionStatus.PENDING_FOR_SUPERVISOR
+
+        elif rejected_candidates.count() > 0:
+            election.status = Election.ElectionStatus.REJECTED
+
+        elif accepted_candidates.count() == candidates.count():
+            election.status = Election.ElectionStatus.ACCEPTED
+
+        election.save()

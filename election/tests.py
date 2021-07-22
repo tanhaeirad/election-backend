@@ -1487,7 +1487,6 @@ class CandidateStatusTest(TestCase):
             self.assertEqual(candidate.status, Candidate.CandidateStatus.PENDING_FOR_SUPERVISOR)
 
     def test_candidates_status_after_supervisor_submit_correct_vote(self):  # candidates status should be Accepted
-
         self.inspector_submit_vote()
         self.supervisor_submit_correct_vote()
 
@@ -1532,6 +1531,148 @@ class CandidateStatusTest(TestCase):
             {'candidate': 4, 'vote': 20},
             {'candidate': 5, 'vote': 21},
             {'candidate': 3, 'vote': 9},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+
+class ElectionStatusTest(TestCase):
+    def create_clients(self):
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        self.inspector = Inspector.objects.create(user=inspector)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        self.supervisor = Supervisor.objects.create(user=supervisor)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+    def setUp(self):
+        self.create_clients()
+
+        # create city
+        self.city = City.objects.create(name='c-o', pk=0)
+
+        # create zone
+        self.zone = Zone.objects.create(pk=0, name='z-0', city=self.city)
+
+        # create election
+        self.election = Election.objects.create(pk=0, zone=self.zone, inspector=self.inspector,
+                                                supervisor=self.supervisor)
+
+        # create candidates for election_0_0
+        Candidate.objects.create(pk=3, first_name='f3', last_name='l3', election=self.election)
+        Candidate.objects.create(pk=4, first_name='f4', last_name='l4', election=self.election)
+        Candidate.objects.create(pk=5, first_name='f5', last_name='l5', election=self.election)
+        Candidate.objects.create(pk=6, first_name='f6', last_name='l6', election=self.election)
+
+    def test_initial_election_status(self):  # election status should be Pending For Inspector
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.PENDING_FOR_INSPECTOR)
+
+    def test_status_after_inspector_submit_part_of_votes(self):  # election status should be Pending For Inspector
+        self.inspector_submit_part_of_votes()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.PENDING_FOR_INSPECTOR)
+
+    def test_status_after_inspector_submit_all_of_votes(self):  # election status should be Pending For Supervisor
+        self.inspector_submit_all_of_votes()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.PENDING_FOR_SUPERVISOR)
+
+    def test_status_after_supervisor_submit_part_of_votes_incorrect(self):  # election status Pending For Supervisor
+        self.supervisor_submit_part_of_votes_incorrect()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.PENDING_FOR_SUPERVISOR)
+
+    def test_status_after_supervisor_submit_part_of_votes_correct(self):
+        # election status should be Pending For Supervisor
+
+        self.supervisor_submit_part_of_votes_correct()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.PENDING_FOR_SUPERVISOR)
+
+    def test_status_after_supervisor_submit_all_of_votes_incorrect(self):  # election status should be Rejected
+        self.supervisor_submit_all_of_votes_incorrect()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.REJECTED)
+
+    def test_status_after_supervisor_submit_all_of_votes_correct(self):  # election status should be Accepted
+        self.supervisor_submit_all_of_votes_correct()
+
+        election = Election.objects.get(pk=0)
+        self.assertEqual(election.status, Election.ElectionStatus.ACCEPTED)
+
+    def inspector_submit_part_of_votes(self):
+        data = [
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+        ]
+        self.client_inspector.post(INSPECTOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def inspector_submit_all_of_votes(self):
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_inspector.post(INSPECTOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_part_of_votes_incorrect(self):
+        self.inspector_submit_all_of_votes()
+
+        data = [
+            {'candidate': 4, 'vote': 22},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 50},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_all_of_votes_incorrect(self):
+        self.inspector_submit_all_of_votes()
+
+        data = [
+            {'candidate': 3, 'vote': 11},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+            {'candidate': 6, 'vote': 51},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_part_of_votes_correct(self):
+        self.inspector_submit_all_of_votes()
+
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
+        ]
+        self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+    def supervisor_submit_all_of_votes_correct(self):
+        self.inspector_submit_all_of_votes()
+
+        data = [
+            {'candidate': 3, 'vote': 10},
+            {'candidate': 4, 'vote': 20},
+            {'candidate': 5, 'vote': 30},
             {'candidate': 6, 'vote': 50},
         ]
         self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
