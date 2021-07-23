@@ -1,0 +1,11 @@
+[
+  {
+    "model": "election.election",
+    "pk": 1,
+    "fields": {
+      "zone": 1,
+      "inspector": 1,
+      "supervisor": 1
+    }
+  }
+]

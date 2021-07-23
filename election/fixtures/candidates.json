@@ -1,0 +1,47 @@
+[
+  {
+    "model": "election.candidate",
+    "pk": 1,
+    "fields": {
+      "first_name": "علی",
+      "last_name": "علوی",
+      "election": 1
+    }
+  },
+  {
+    "model": "election.candidate",
+    "pk": 2,
+    "fields": {
+      "first_name": "مهسا",
+      "last_name": "رضایی",
+      "election": 1
+    }
+  },
+  {
+    "model": "election.candidate",
+    "pk": 3,
+    "fields": {
+      "first_name": "محمد",
+      "last_name": "مقدسی",
+      "election": 1
+    }
+  },
+  {
+    "model": "election.candidate",
+    "pk": 4,
+    "fields": {
+      "first_name": "پردیس",
+      "last_name": "محمدی",
+      "election": 1
+    }
+  },
+  {
+    "model": "election.candidate",
+    "pk": 5,
+    "fields": {
+      "first_name": "حسین",
+      "last_name": "ایرانی",
+      "election": 1
+    }
+  }
+]

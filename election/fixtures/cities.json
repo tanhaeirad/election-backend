@@ -1,0 +1,16 @@
+[
+  {
+    "model": "election.city",
+    "pk": 1,
+    "fields": {
+      "name": "اصفهان"
+    }
+  },
+  {
+    "model": "election.city",
+    "pk": 2,
+    "fields": {
+      "name": "شیراز"
+    }
+  }
+]

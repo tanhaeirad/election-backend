@@ -1,0 +1,34 @@
+[
+  {
+    "model": "election.zone",
+    "pk": 1,
+    "fields": {
+      "name": "منطقه ۱ اصفهان",
+      "city": 1
+    }
+  },
+  {
+    "model": "election.zone",
+    "pk": 2,
+    "fields": {
+      "name": "منطقه ۲ اصفهان",
+      "city": 1
+    }
+  },
+  {
+    "model": "election.zone",
+    "pk": 3,
+    "fields": {
+      "name": "منطقه ۱ شیراز",
+      "city": 2
+    }
+  },
+  {
+    "model": "election.zone",
+    "pk": 4,
+    "fields": {
+      "name": "منطقه ۲ شیراز",
+      "city": 2
+    }
+  }
+]
