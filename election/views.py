@@ -102,3 +102,23 @@ class SupervisorConfirmVoteAPIView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetAllElectionsAPIView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        all_candidates = Candidate.objects.all()
+        all_elections = Election.objects.all()
+
+        for candidate in all_candidates:
+            candidate.vote1 = None
+            candidate.vote2 = None
+            candidate.status = Candidate.CandidateStatus.PENDING_FOR_INSPECTOR
+            candidate.save()
+
+        for election in all_elections:
+            election.status = Election.ElectionStatus.PENDING_FOR_INSPECTOR
+            election.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -49,6 +49,9 @@ INSPECTOR_CONFIRM_VOTE_ENDPOINT = '/election/elections/inspector-confirm-vote/0/
 # Confirm vote by supervisor
 SUPERVISOR_CONFIRM_VOTE_ENDPOINT = '/election/elections/supervisor-confirm-vote/0/'
 
+# Reset All Elections
+RESET_ALL_ELECTIONS_ENDPOINT = '/election/reset/'
+
 
 class CityTest(TestCase):
     def create_clients(self):
@@ -1676,3 +1679,141 @@ class ElectionStatusTest(TestCase):
             {'candidate': 6, 'vote': 50},
         ]
         self.client_supervisor.post(SUPERVISOR_CONFIRM_VOTE_ENDPOINT, json.dumps(data), content_type='application/json')
+
+
+class ResetAllElectionsTest(TestCase):
+    def create_clients(self):
+        # create self.client_visitor
+        visitor = User.objects.create_user(username='visitor', password='12345')
+
+        self.client_visitor = APIClient()
+        token = Token.objects.create(user=visitor)
+        token.save()
+        self.client_visitor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_inspector
+        inspector = User.objects.create(username='inspector', password='12345')
+        self.inspector = Inspector.objects.create(user=inspector)
+        inspector.refresh_from_db()
+
+        self.client_inspector = APIClient()
+        token = Token.objects.create(user=inspector)
+        token.save()
+        self.client_inspector.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_supervisor
+        supervisor = User.objects.create(username='supervisor', password='12345')
+        self.supervisor = Supervisor.objects.create(user=supervisor)
+        supervisor.refresh_from_db()
+
+        self.client_supervisor = APIClient()
+        token = Token.objects.create(user=supervisor)
+        token.save()
+        self.client_supervisor.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_admin = self.client
+        admin = User.objects.create(username='admin', password='12345')
+        Admin.objects.create(user=admin)
+        admin.refresh_from_db()
+
+        self.client_admin = APIClient()
+        token = Token.objects.create(user=admin)
+        token.save()
+        self.client_admin.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        # create self.client_unauthorized
+        self.client_unauthorized = APIClient()
+
+    def setUp(self):
+        self.create_clients()
+
+        # create inspector1 and supervisor1
+        inspector = User.objects.create(username='inspector1', password='12345')
+        self.inspector1 = Inspector.objects.create(user=inspector)
+
+        supervisor = User.objects.create(username='supervisor1', password='12345')
+        self.supervisor1 = Supervisor.objects.create(user=supervisor)
+
+        # create city
+        self.city = City.objects.create(name='c-o', pk=0)
+
+        # create zone0 and zone1
+        self.zone0 = Zone.objects.create(pk=0, name='z-0', city=self.city)
+        self.zone1 = Zone.objects.create(pk=1, name='z-1', city=self.city)
+
+        # create election0 and election1
+        self.election0 = Election.objects.create(pk=0, zone=self.zone0, inspector=self.inspector,
+                                                 supervisor=self.supervisor, status=Election.ElectionStatus.ACCEPTED)
+        self.election1 = Election.objects.create(pk=1, zone=self.zone1, inspector=self.inspector1,
+                                                 supervisor=self.supervisor1, status=Election.ElectionStatus.REJECTED)
+
+        # create candidates for election0
+        Candidate.objects.create(pk=3, vote1=10, vote2=10, first_name='f3', last_name='l3',
+                                 election=self.election0, status=Candidate.CandidateStatus.ACCEPTED)
+        Candidate.objects.create(pk=4, vote1=20, vote2=20, first_name='f4', last_name='l4',
+                                 election=self.election0, status=Candidate.CandidateStatus.ACCEPTED)
+        Candidate.objects.create(pk=5, vote1=30, vote2=30, first_name='f5', last_name='l5',
+                                 election=self.election0, status=Candidate.CandidateStatus.ACCEPTED)
+        Candidate.objects.create(pk=6, vote1=20, vote2=20, first_name='f6', last_name='l6',
+                                 election=self.election0, status=Candidate.CandidateStatus.ACCEPTED)
+
+        # create candidates for election1
+        Candidate.objects.create(pk=7, vote1=10, vote2=15, status=Candidate.CandidateStatus.REJECTED, first_name='f7',
+                                 last_name='l7', election=self.election1)
+        Candidate.objects.create(pk=8, vote1=20, vote2=20, status=Candidate.CandidateStatus.ACCEPTED, first_name='f8',
+                                 last_name='l8', election=self.election1)
+
+    def test_api(self):
+        number_of_accepted_election = Election.objects.filter(status=Election.ElectionStatus.ACCEPTED).count()  # 1
+        number_of_rejected_election = Election.objects.filter(status=Election.ElectionStatus.REJECTED).count()  # 1
+        self.assertEqual(number_of_accepted_election, 1)
+        self.assertEqual(number_of_rejected_election, 1)
+
+        number_of_candidate_with_vote1_none = Candidate.objects.filter(vote1__isnull=True).count()  # 0
+        number_of_candidate_with_vote2_none = Candidate.objects.filter(vote2__isnull=True).count()  # 0
+        self.assertEqual(number_of_candidate_with_vote1_none, 0)
+        self.assertEqual(number_of_candidate_with_vote2_none, 0)
+
+        number_of_accepted_candidate = Candidate.objects.filter(status=Candidate.CandidateStatus.ACCEPTED).count()  # 5
+        number_of_rejected_candidate = Candidate.objects.filter(status=Candidate.CandidateStatus.REJECTED).count()  # 1
+        self.assertEqual(number_of_accepted_candidate, 5)
+        self.assertEqual(number_of_rejected_candidate, 1)
+
+        response = self.client_admin.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        number_of_accepted_election = Election.objects.filter(status=Election.ElectionStatus.ACCEPTED).count()  # 0
+        number_of_rejected_election = Election.objects.filter(status=Election.ElectionStatus.REJECTED).count()  # 0
+        self.assertEqual(number_of_accepted_election, 0)
+        self.assertEqual(number_of_rejected_election, 0)
+
+        number_of_accepted_candidate = Candidate.objects.filter(status=Candidate.CandidateStatus.ACCEPTED).count()  # 0
+        number_of_rejected_candidate = Candidate.objects.filter(status=Candidate.CandidateStatus.REJECTED).count()  # 0
+        self.assertEqual(number_of_accepted_candidate, 0)
+        self.assertEqual(number_of_rejected_candidate, 0)
+
+        number_of_candidate_with_vote1_none = Candidate.objects.filter(vote1__isnull=True).count()  # 6
+        number_of_candidate_with_vote2_none = Candidate.objects.filter(vote2__isnull=True).count()  # 6
+        self.assertEqual(number_of_candidate_with_vote1_none, 6)
+        self.assertEqual(number_of_candidate_with_vote2_none, 6)
+
+    def test_permission(self):
+        # for visitor
+        response = self.client_visitor.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # for inspector
+        response = self.client_inspector.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # for supervisor
+        response = self.client_supervisor.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # for admin
+        response = self.client_admin.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # for unauthorized
+        response = self.client_unauthorized.post(RESET_ALL_ELECTIONS_ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

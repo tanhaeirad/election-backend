@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import CityViewSet, ZoneViewSet, ZonesOfCityAPIView, ElectionViewSet, CandidateViewSet, \
-    InspectorConfirmVoteAPIView, SupervisorConfirmVoteAPIView
+    InspectorConfirmVoteAPIView, SupervisorConfirmVoteAPIView,ResetAllElectionsAPIView
 
 router = DefaultRouter()
 router.register(r'cities', CityViewSet, basename='city')
@@ -17,5 +17,5 @@ urlpatterns = [
          name='inspector-confirm-votes'),
     path('elections/supervisor-confirm-vote/<int:election_id>/', view=SupervisorConfirmVoteAPIView.as_view(),
          name='supervisor-confirm-votes'),
-
+    path('reset/', view=ResetAllElectionsAPIView.as_view(), name='reset-all')
 ]
